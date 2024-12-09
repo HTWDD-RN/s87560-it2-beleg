@@ -63,7 +63,37 @@ public class Client  {
     theClient.view.pufferNumber.setText(JITTER_BUFFER_SIZE.toString());
     theClient.view.setRtpHandler(rtpHandler);
 
-    rtsp = new Rtsp(url, RTP_RCV_PORT);
+    rtsp = new Rtsp(url, RTP_RCV_PORT) {
+      @Override
+      public boolean play() {
+        return false;
+      }
+
+      @Override
+      public boolean pause() {
+        return false;
+      }
+
+      @Override
+      public boolean teardown() {
+        return false;
+      }
+
+      @Override
+      public void describe() {
+
+      }
+
+      @Override
+      public void options() {
+
+      }
+
+      @Override
+      public void send_RTSP_request(String request_type) {
+
+      }
+    };
   }
 
 
