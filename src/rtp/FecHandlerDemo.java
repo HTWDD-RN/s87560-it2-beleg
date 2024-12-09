@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 */
 
 abstract class FecHandlerDemo {
-  RtpPacket rtp;
+  RTPpacket rtp;
   FecPacket fec;
 
   // Receiver
@@ -74,7 +74,7 @@ abstract class FecHandlerDemo {
    *
    * @param rtp RTPpacket
    */
-  public void setRtp(RtpPacket rtp) {
+  public void setRtp(RTPpacket rtp) {
     // init new FEC packet if necessary
     if (fec == null) {
       fec =
@@ -132,7 +132,7 @@ abstract class FecHandlerDemo {
    *
    * @param rtp the received FEC-RTP
    */
-  public void rcvFecPacket(RtpPacket rtp) {
+  public void rcvFecPacket(RTPpacket rtp) {
     // build fec from rtp
     fec = new FecPacket(rtp.getpacket(), rtp.getpacket().length);
     // TASK remove comment for debugging
@@ -163,7 +163,7 @@ abstract class FecHandlerDemo {
    *
    * Usefull member variables: fecList
    */
-  abstract boolean checkCorrection(int nr, HashMap<Integer, RtpPacket> mediaPackets);
+  abstract boolean checkCorrection(int nr, HashMap<Integer, RTPpacket> mediaPackets);
 
   /**
    * Build an RTP packet from FEC and group
@@ -174,7 +174,7 @@ abstract class FecHandlerDemo {
    *
    * Usefull member variables: fecList, fecNr, fecStack
    */
-  abstract RtpPacket correctRtp(int nr, HashMap<Integer, RtpPacket> mediaPackets);
+  abstract RTPpacket correctRtp(int nr, HashMap<Integer, RTPpacket> mediaPackets);
 
   /**
    * It is necessary to clear all data structures (in case of memory shortage)

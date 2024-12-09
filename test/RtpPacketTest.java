@@ -1,14 +1,17 @@
 import static org.junit.jupiter.api.Assertions.*;
+import static rtp.RtpHandler.RTP_PAYLOAD_JPEG;
+
 import org.junit.jupiter.api.*;
-import rtp.RtpPacket;
+import rtp.RTPpacket;
+
 
 class RtpPacketTest {
 
-  private static RtpPacket rtpPacket;
+  private static RTPpacket rtpPacket;
 
   @BeforeAll
   public static void initRTP() {
-    rtpPacket = new RtpPacket(26, 42, 0, 1, new byte[0], 0);
+    rtpPacket = new RTPpacket(26, 42, 0, 1, new byte[0], 0);
   }
 
   @Test

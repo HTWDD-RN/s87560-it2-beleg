@@ -56,7 +56,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class FecPacket extends RtpPacket {
+public class FecPacket extends RTPpacket {
   private static final int FEC_HEADER_SIZE = 10;
   private static final int ULP_HEADER_SIZE0 = 4;
   private static final int ULP_HEADER_SIZE1 = 8;
@@ -119,7 +119,7 @@ public class FecPacket extends RtpPacket {
     // removes the fec-header from the payload
     byte[] buf = new byte[payload.length- FEC_HEADER_SIZE - ulpLevelHeader.length];
     System.arraycopy(payload,FEC_HEADER_SIZE+ulpLevelHeader.length,
-        buf, 0, payload.length-FEC_HEADER_SIZE-ulpLevelHeader.length);
+            buf, 0, payload.length-FEC_HEADER_SIZE-ulpLevelHeader.length);
     payload = buf;
   }
 
@@ -236,10 +236,10 @@ public class FecPacket extends RtpPacket {
     System.arraycopy(fecHeader, 0, packet, HEADER_SIZE, FEC_HEADER_SIZE);
     // ULP Header from array
     System.arraycopy(
-        ulpLevelHeader, 0, packet, HEADER_SIZE + FEC_HEADER_SIZE, ulpLevelHeader.length);
+            ulpLevelHeader, 0, packet, HEADER_SIZE + FEC_HEADER_SIZE, ulpLevelHeader.length);
     // Payload starts from 0
     System.arraycopy(
-        payload, 0, packet, headerAll, payload_size);
+            payload, 0, packet, headerAll, payload_size);
     return packet;
   }
 
@@ -264,10 +264,10 @@ public class FecPacket extends RtpPacket {
     snBase = (0xFF & fecHeader[2]) * 256 + (0xFF & fecHeader[3]);
     // TODO check if correct
     tsRecovery =
-        (0xFFFFFF & fecHeader[4]) * 0xFFFF
-            + (0xFF & fecHeader[5])
-            + (0xFF & fecHeader[6]) * 256
-            + (0xFF & fecHeader[7]);
+            (0xFFFFFF & fecHeader[4]) * 0xFFFF
+                    + (0xFF & fecHeader[5])
+                    + (0xFF & fecHeader[6]) * 256
+                    + (0xFF & fecHeader[7]);
     lengthRecovery = (0xFF & fecHeader[8]) * 256 + (0xFF & fecHeader[9]);
 
     // ULP Level Header
@@ -283,10 +283,10 @@ public class FecPacket extends RtpPacket {
     // Large mask
     if (L == 1) {
       mask |=
-          ((0xFFL & ulpLevelHeader[4]) << 40)
-              + ((0xFFL & ulpLevelHeader[5]) << 32)
-              + ((0xFFL & ulpLevelHeader[6]) << 24)
-              + ((0xFFL & ulpLevelHeader[7]) << 16);
+              ((0xFFL & ulpLevelHeader[4]) << 40)
+                      + ((0xFFL & ulpLevelHeader[5]) << 32)
+                      + ((0xFFL & ulpLevelHeader[6]) << 24)
+                      + ((0xFFL & ulpLevelHeader[7]) << 16);
     }
   }
 
@@ -299,7 +299,7 @@ public class FecPacket extends RtpPacket {
    *
    * @param rtp RTP packet
    */
-  public void addRtp(RtpPacket rtp) {
+  public void addRtp(RTPpacket rtp) {
     // sets the payload
     byte[] data = rtp.getpayload();
 
@@ -338,9 +338,9 @@ public class FecPacket extends RtpPacket {
    * Generates the lost RTP packet from the XORed values
    * @return rtp
    */
-  public RtpPacket getLostRtp(int snr) {
+  public RTPpacket getLostRtp(int snr) {
     // TODO get the correct SNr
-    return new RtpPacket(ptRecovery, snr  ,tsRecovery, M, payload, lengthRecovery);
+    return new RTPpacket(ptRecovery, snr  ,tsRecovery, M, payload, lengthRecovery);
   }
 
 

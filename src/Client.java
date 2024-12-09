@@ -15,8 +15,9 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.Timer;
 import rtp.ReceptionStatistic;
-import rtp.RtpHandler;
 import rtsp.Rtsp;
+import rtp.RtpHandler;
+
 import utils.CustomLoggingHandler;
 import java.awt.Image;
 

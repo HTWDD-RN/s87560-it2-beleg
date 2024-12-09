@@ -1,5 +1,6 @@
 package rtp;
 
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -7,61 +8,31 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Random;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Handler for RTP packets.
- * Processes all RTP packets and provides JPEG images for displaying
- *
- * @author Emanuel Günther
- */
 public class RtpHandler {
-
-
-
-    public void setJitterBufferStartSize(int jitterBufferStartSize) {
-        this.jitterBufferStartSize = jitterBufferStartSize;
-    }
-
-    public enum EncryptionMode {
-        NONE,
-        SRTP,
-        JPEG,
-        JPEG_ATTACK
-    }
-
-    public static final int RTP_PAYLOAD_FEC = 127; // assumed as in RFC 5109, 10.1
+    public static final int RTP_PAYLOAD_FEC = 127;
     public static final int RTP_PAYLOAD_JPEG = 26;
-    private static byte[] defaultKey = new byte[]{
-        (byte)0xE1, (byte)0xF9, (byte)0x7A, (byte)0x0D, (byte)0x3E, (byte)0x01, (byte)0x8B, (byte)0xE0,
-        (byte)0xD6, (byte)0x4F, (byte)0xA3, (byte)0x2C, (byte)0x06, (byte)0xDE, (byte)0x41, (byte)0x39};
-    private static byte[] defaultSalt = new byte[]{
-        (byte)0x0E, (byte)0xC6, (byte)0x75, (byte)0xAD, (byte)0x49, (byte)0x8A, (byte)0xFE,
-        (byte)0xEB, (byte)0xB6, (byte)0x96, (byte)0x0B, (byte)0x3A, (byte)0xAB, (byte)0xE6};
-
-    private EncryptionMode encryptionMode = EncryptionMode.NONE;
+    private static byte[] defaultKey = new byte[]{-31, -7, 122, 13, 62, 1, -117, -32, -42, 79, -93, 44, 6, -34, 65, 57};
+    private static byte[] defaultSalt = new byte[]{14, -58, 117, -83, 73, -118, -2, -21, -74, -106, 11, 58, -85, -26};
+    private EncryptionMode encryptionMode;
     private FecHandler fecHandler = null;
     private JpegEncryptionHandler jpegEncryptionHandler = null;
     private SrtpHandler srtpHandler = null;
-
-    // server side
-    private int currentSeqNb = 0; // sequence number of current frame
-    private int currentTS = 0;    // timestamp of a set of frames
-    private boolean fecEncodingEnabled = false; // server side
-    Random random = new Random(123456); // Channel loss - fixed seed for debugging
+    private int currentSeqNb = 0;
+    private boolean fecEncodingEnabled = false;
+    static final Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     int dropCounter = 0;
-    DatagramSocket RTPsocket; // socket to be used to send and receive UDP packets
+    private Boolean isServer;
+    int fecGroupSize;
+    private int currentTS = 0;    // timestamp of a set of frames
+    Random random = new Random(123456); // Channel loss - fixed seed for debugging
 
-    // client side
+
     private boolean fecDecodingEnabled = false; // client side
-    private HashMap<Integer, RtpPacket> mediaPackets = null;
+    private HashMap<Integer, RTPpacket> mediaPackets = null;
     private int playbackIndex = -1;  // iteration index fo rtps for playback
     private int startIndex;         // first RTP of a stream
     private int fecIndex;            // iteration index for fec correction
@@ -70,7 +41,8 @@ public class RtpHandler {
     private int tsStart;            // Timestamp start for rtps for playback
     private int tsAdd = 0;          // Timestamp add for rtps for playback
     private int jitterBufferStartSize = 25;      // size of the input buffer => start delay
-    //private int jitterBufferSize;
+    DatagramSocket RTPsocket; // socket to be used to send and receive UDP packets
+
     private List<Integer> lostJpegSlices = null;
     private HashMap<Integer, List<Integer>> sameTimestamps = null;
     private HashMap<Integer, Integer> firstRtp= null; // first RTP of a jpeg-frame
@@ -78,119 +50,70 @@ public class RtpHandler {
     private ReceptionStatistic statistics = null;
     private Receiver receiver = null;           // RTP receiver thread
 
-    private Boolean isServer;
-    static final Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
-    /**
-     * Create a new rtp.RtpHandler as server.
-     *
-     * @param fecGroupSize Group size for FEC packets. If the value is 0, FEC will be disabled.
-     */
-    public RtpHandler(int fecGroupSize) {
-        isServer = true;
-        if (fecGroupSize > 0) {
-            fecEncodingEnabled = true;
-            fecHandler = new FecHandler(fecGroupSize);
-        }
-        try {
-            RTPsocket = new DatagramSocket();
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Exception caught: " + e);
+
+
+
+
+    public void setJitterBufferStartSize(int jitterBufferStartSize) {
+        this.jitterBufferStartSize = jitterBufferStartSize;
+    }
+
+    public RtpHandler(int var1) {
+        if (var1 > 0) {
+            this.fecEncodingEnabled = true;
+            this.fecHandler = new FecHandler(var1);
         }
 
     }
 
-    /**
-     * Create a new rtp.RtpHandler as client.
-     *
-     * @param useFec Use FEC correction or not
-     */
-    public RtpHandler(boolean useFec) {
-        isServer = false;
-        fecDecodingEnabled = useFec;
-        fecHandler = new FecHandler(useFec);
-        mediaPackets = new HashMap<>();
-        sameTimestamps = new HashMap<>();
-        firstRtp = new HashMap<>();
-        lastRtp = new HashMap<>();
-        statistics = new ReceptionStatistic();
+    public RtpHandler(boolean var1) {
+        this.fecDecodingEnabled = var1;
+        this.fecHandler = new FecHandler(var1);
+        this.mediaPackets = new HashMap();
+        this.sameTimestamps = new HashMap();
+        this.statistics = new ReceptionStatistic();
     }
 
-    public void reset() {
-        currentSeqNb = 0;
-        //fecHandler.reset();
-        playbackIndex = -1;  // Client
-        dropCounter = 0;
-
-        if (!isServer) {
-            //mediaPackets.clear();
-            //sameTimestamps.clear();
-            statistics = new ReceptionStatistic();
-        }
-    }
-
-    // ********************************** Server side ***************************************
-
-
-    /**
-     * Retrieve the current FEC packet, if it is available.
-     *
-     * @return FEC packet as byte array, null if no such packet available
-     */
     public byte[] createFecPacket() {
-        if (!isFecPacketAvailable()) {
+        if (!this.isFecPacketAvailable()) {
             return null;
-        }
-
-        byte[] fecPacket = fecHandler.getPacket();
-        byte[] encryptedPacket;
-
-        switch (encryptionMode) {
-        case SRTP:
-            encryptedPacket = srtpHandler.transformToSrtp(new RtpPacket(fecPacket, fecPacket.length));
-            if (encryptedPacket != null) {
-                fecPacket = encryptedPacket;
-            }
-            break;
-        case JPEG:
-        case JPEG_ATTACK:
-        default:
-            break;
-        }
-
-        return fecPacket;
-    }
-
-
-    /**
-     * Check for the availability of an FEC packet.
-     *
-     * @return boolean value if FEC packet available
-     */
-    public boolean isFecPacketAvailable() {
-        if (fecEncodingEnabled) {
-            return fecHandler.isReady();
         } else {
-            return false;
+            byte[] fecPacket = this.fecHandler.getPacket();
+            Object var2 = null;
+            switch (this.encryptionMode.ordinal()) {
+                case 1:
+                    byte[] var3 = this.srtpHandler.transformToSrtp(new RTPpacket(fecPacket, fecPacket.length));
+                    if (var3 != null) {
+                        fecPacket = var3;
+                    }
+                    break;
+                    //CASE 2 JPEG
+                case 2:
+                    // CASE 3 JPEG_attack:
+                case 3:
+                default:
+                     break;
+            }
+            return fecPacket;
         }
     }
 
-    /**
-     * Transform a JPEG image to an RTP packet.
-     * Takes care of all steps between.
-     *
-     * @param jpegImage JPEG image as byte array
-     * @return RTP packet as byte array
-     */
-    public List<RtpPacket> jpegToRtpPackets(final byte[] jpegImage, int framerate) {
+
+
+    public boolean isFecPacketAvailable() {
+        return this.fecEncodingEnabled ? this.fecHandler.isReady() : false;
+    }
+
+    public List<RTPpacket> jpegToRtpPackets(final byte[] jpegImage, int framerate) {
         byte[] image = switch (encryptionMode) {
-          case JPEG -> jpegEncryptionHandler.encrypt(jpegImage);
-          default -> jpegImage;
+            case JPEG -> jpegEncryptionHandler.encrypt(jpegImage);
+            default -> jpegImage;
         };
 
-      JpegFrame frame = JpegFrame.getFromJpegBytes(image); // convert JPEG to RTP payload
+        JpegFrame frame = JpegFrame.getFromJpegBytes(image); // convert JPEG to RTP payload
 
-        List<RtpPacket> rtpPackets = new ArrayList<>();
+        List<RTPpacket> rtpPackets = new ArrayList<>();
         currentTS += (90000 / framerate); // TS is the same for all fragments
         int Mark = 0; // Marker bit is 0 for all fragments except the last one
 
@@ -205,8 +128,8 @@ public class RtpHandler {
 
             // Build an RTPpacket object containing the image
             // time has to be in scale with 90000 Hz (RFC 2435, 3.)
-            RtpPacket packet = new RtpPacket(
-                RTP_PAYLOAD_JPEG, currentSeqNb, currentTS, Mark, frag, frag.length);
+            RTPpacket packet = new RTPpacket(
+                    RTP_PAYLOAD_JPEG, currentSeqNb, currentTS, Mark, frag, frag.length);
 
             rtpPackets.add(packet);
         }
@@ -215,12 +138,12 @@ public class RtpHandler {
     }
 
     public void sendJpeg(final byte[] jpegImage, int framerate, InetAddress clientIp, int clientPort, double lossRate) {
-        List<RtpPacket> rtpPackets;    // fragmented RTP packets
+        List<RTPpacket> rtpPackets;    // fragmented RTP packets
         DatagramPacket sendDp;      // UDP packet containing the video frames
 
         rtpPackets = jpegToRtpPackets(jpegImage, framerate); // gets the fragmented RTP packets
 
-        for (RtpPacket rtpPacket : rtpPackets) {    // Liste der RTP-Pakete
+        for (RTPpacket rtpPacket : rtpPackets) {    // Liste der RTP-Pakete
 
             byte[] packetData;
             if (encryptionMode == EncryptionMode.SRTP) {
@@ -243,7 +166,6 @@ public class RtpHandler {
         }
     }
 
-
     /**
      * @param senddp Datagram to send
      */
@@ -253,33 +175,24 @@ public class RtpHandler {
         else label = " media ";
         if (random.nextDouble() > lossRate) {
             logger.log(Level.FINE, "Send frame: " + label + " size: " + senddp.getLength());
-          try {
-            RTPsocket.send(senddp);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+            try {
+                RTPsocket.send(senddp);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         } else {
             if (!fec) dropCounter++;
             logger.log(Level.INFO, "Dropped frame: " + label + "Counter: " + dropCounter);
         }
     }
 
-
-
-
-    // ********************************** Client side ***************************************
-
-    /**
-     * Get statistic values of the reception of the packets.
-     *
-     * @return Object with statistic values
-     */
     public ReceptionStatistic getReceptionStatistic() {
         // update values which are used internally and that are not just statistic
         statistics.playbackIndex = playbackIndex;
 
         return statistics;
     }
+
 
     /**
      * Get next image for playback.
@@ -288,6 +201,8 @@ public class RtpHandler {
      *
      * @return Image as byte array
      */
+
+
     public byte[] nextPlaybackImage() {
         // Check if jitter buffer is filled
         if (tsReceive <= tsStart + jitterBufferStartSize * tsAdd ) {
@@ -301,7 +216,7 @@ public class RtpHandler {
         statistics.jitterBufferSize = (tsReceive - tsIndex) / tsAdd;
 
 
-        ArrayList<RtpPacket> packetList = packetsForNextImage();
+        ArrayList<RTPpacket> packetList = packetsForNextImage();
         if (packetList == null) {
             logger.log(Level.FINE, "PLAY: no RTPs for playback  TS : " + tsIndex + " " + playbackIndex);
             return null;
@@ -309,7 +224,7 @@ public class RtpHandler {
 
         // TODO sometimes nullpointer exception
         logger.log(Level.FINER, "PLAY: get RTPs from " + packetList.get(0).getsequencenumber()
-            + " to " + packetList.get(packetList.size()-1).getsequencenumber());
+                + " to " + packetList.get(packetList.size()-1).getsequencenumber());
 
         // Combine RTP packets to one JPEG image
         //byte[] image = rtp.JpegFrame.combineToOneImage(packetList);
@@ -325,123 +240,39 @@ public class RtpHandler {
 
         byte[] decryptedImage;
         switch (encryptionMode) {
-        case JPEG:
-            decryptedImage = jpegEncryptionHandler.decrypt(image);
-            if (decryptedImage != null) {
-                image = decryptedImage;
-            }
-            break;
-        case JPEG_ATTACK:
-            decryptedImage = jpegEncryptionHandler.replaceAttackDecryption(image);
-            if (decryptedImage != null) {
-                image = decryptedImage;
-            }
-            break;
-        case SRTP:
-        default:
-            break;
+            case JPEG:
+                decryptedImage = jpegEncryptionHandler.decrypt(image);
+                if (decryptedImage != null) {
+                    image = decryptedImage;
+                }
+                break;
+            case JPEG_ATTACK:
+                decryptedImage = jpegEncryptionHandler.replaceAttackDecryption(image);
+                if (decryptedImage != null) {
+                    image = decryptedImage;
+                }
+                break;
+            case SRTP:
+            default:
+                break;
         }
 
         return image;
     }
 
-    public List<Integer> getRtpList() {
-        return sameTimestamps.get(tsIndex);
-    }
+    public void reset() {
+        currentSeqNb = 0;
+        //fecHandler.reset();
+        playbackIndex = -1;  // Client
+        dropCounter = 0;
 
-    public List<Integer> getLostJpegSlices() {
-        return lostJpegSlices;
-    }
-
-    /**
-     * Construct a list of RTP packets which contain the data of one jpeg image.
-     *
-     * @return List of RTP packets for one image
-     */
-    private ArrayList<RtpPacket> packetsForNextImage() {
-        ArrayList<RtpPacket> packetList = new ArrayList<>();
-
-        int snFirst;                    // looking for fist RTP of a jpeg-frame
-        // TODO error correction of first packet desirable
-        if ( firstRtp.get(tsIndex) == null) {   // no RTPs with this TS
-
-            logger.log(Level.FINER, "PLAY: no firstRTP with this TS: " + tsIndex);
-            statistics.framesLost++;        // full frame is lost
-            return null;
-        } else snFirst = firstRtp.get(tsIndex);
-        RtpPacket packet = obtainMediaPacket(snFirst);  // get the first RTP of the image
-        packetList.add(packet);                         // add in list
-
-        // looking for last RTP of a jpeg-frame
-        int snLast = 0;
-        List<Integer> tsList = sameTimestamps.get(tsIndex);     // list of RTPs with this TS
-        Collections.sort(tsList);                               // sort list
-        if (lastRtp.get(tsIndex) != null) {
-            snLast = lastRtp.get(tsIndex);                      // last RTP found in list
-        } else if (firstRtp.get(tsIndex + tsAdd) != null) {
-            snLast = firstRtp.get(tsIndex + tsAdd) - 1;         // last RTP is missing
-        } else if (sameTimestamps.get(tsIndex) != null) {
-            snLast = tsList.get( tsList.size() - 1);            // use TS-List
-        } else {
-            return packetList;                                  // only first RTP used
+        if (!isServer) {
+            //mediaPackets.clear();
+            //sameTimestamps.clear();
+            statistics = new ReceptionStatistic();
         }
-
-        lostJpegSlices = new ArrayList<>(); // List of missing RTPs (JPEG slices)
-        logger.log(Level.FINER, "PLAY: get RTPs from " + snFirst + " to " + snLast);
-        boolean lost = false;
-        for (int i = snFirst+1; i <= snLast; i++) {
-            packet = obtainMediaPacket(i);
-            if (packet == null) {
-                lost = true;
-                lostJpegSlices.add(i-snFirst);
-            }
-            else   packetList.add(packet);
-        }
-        if (lost) statistics.framesPartLost++;
-        playbackIndex = snLast;
-        return packetList;
     }
 
-    private RtpPacket obtainMediaPacket(final int number) {
-        int index = number % 0x10000; // account overflow of SNr (16 Bit)
-        RtpPacket packet = mediaPackets.get(index);
-        logger.log(Level.FINER, "PLAY: try get RTP nr: " + index);
-        return packet;
-    }
-
-        /**
-         * Get the RTP packet with the given sequence number.
-         * This is the main method for getting RTP packets. It currently
-         * includes error correction via FEC, but can be extended in the future.
-         *
-         * @param number Sequence number of the RTP packet
-         * @return RTP packet, null if not available and not correctable
-         */
-    private RtpPacket checkMediaPacket(final int number) {
-        int index = number % 0x10000; // account overflow of SNr (16 Bit)
-        RtpPacket packet = mediaPackets.get(index);
-        logger.log(Level.FINER, "RTP: try get RTP nr: " + index);
-
-        if (packet == null) {
-            statistics.packetsLost++;
-            logger.log(Level.WARNING, "RTP: Media lost: " + index);
-
-            boolean fecCorrectable = fecHandler.checkCorrection(index, mediaPackets);
-            if (fecDecodingEnabled && fecCorrectable) {
-                packet = fecHandler.correctRtp(index, mediaPackets);
-                statistics.correctedPackets++;
-                logger.log(Level.INFO, "---> FEC: correctable: " + index);
-            } else {
-                statistics.notCorrectedPackets++;
-                logger.log(Level.INFO, "---> FEC: not correctable: " + index);
-                return null;
-            }
-        }
-        return packet;
-    }
-
-
-    // ***************************** RTP-Receiver  ***************************************
 
     public void startReceiver(int port) {
         receiver = new Receiver(port);
@@ -453,6 +284,14 @@ public class RtpHandler {
         receiver.rtpSocket.close();
     }
 
+    public List<Integer> getLostJpegSlices() {
+        return lostJpegSlices;
+    }
+
+    public void setLostJpegSlices(List<Integer> lostJpegSlices) {
+        this.lostJpegSlices = lostJpegSlices;
+    }
+
     private class Receiver extends Thread {
         DatagramSocket rtpSocket;
         byte[] buffer = new byte[65356];
@@ -460,13 +299,13 @@ public class RtpHandler {
 
         public Receiver(int port) {
             super("RTP-Receiver");
-          try {
-            rtpSocket = new DatagramSocket( port );
-            logger.log(Level.FINE, "Socket receive buffer: " + rtpSocket.getReceiveBufferSize());
-          } catch (SocketException e) {
-            throw new RuntimeException(e);
-          }
-          start();
+            try {
+                rtpSocket = new DatagramSocket( port );
+                logger.log(Level.FINE, "Socket receive buffer: " + rtpSocket.getReceiveBufferSize());
+            } catch (SocketException e) {
+                throw new RuntimeException(e);
+            }
+            start();
         }
 
         public void run() {
@@ -474,7 +313,7 @@ public class RtpHandler {
             while (!interrupted()) {
                 try {
                     rtpSocket.receive(rcvdp);
-                    RtpPacket packet = new RtpPacket(rcvdp.getData(), rcvdp.getLength());
+                    RTPpacket packet = new RTPpacket(rcvdp.getData(), rcvdp.getLength());;
                     if (packet.getpayloadtype() == RTP_PAYLOAD_JPEG) {
                         lastSeqNr = packet.getsequencenumber();
                     }
@@ -486,7 +325,7 @@ public class RtpHandler {
                         if (mediaPackets.get(i) == null) {
                             //statistics.packetsLost++;
                             //logger.log(Level.FINER, "RTP: Media lost: " + i);
-                            RtpPacket rtp = checkMediaPacket(i);
+                            RTPpacket rtp = checkMediaPacket(i);
                             if (rtp != null) {
                                 //logger.log(Level.FINER, "RTP: Media corrected: " + i);
                                 processRtpPacket(rtp, true);
@@ -510,14 +349,10 @@ public class RtpHandler {
         }
     }
 
-    /**
-     * Process and store a received RTP packet.
-     *
-     * @param packet the received RTP packet
-     */
-    public void processRtpPacket(RtpPacket packet, boolean fec) {
+
+    public void processRtpPacket(RTPpacket packet, boolean fec) {
         int seqNr = packet.getsequencenumber();
-        RtpPacket decryptedPacket;
+        RTPpacket decryptedPacket;
         switch (encryptionMode) {
             case SRTP:
                 decryptedPacket = srtpHandler.retrieveFromSrtp(packet.getpacket());
@@ -548,15 +383,15 @@ public class RtpHandler {
 
 
         logger.log(Level.FINER,
-            "---------------- Receiver RTP-Handler --------------------"
-                + "\r\n"
-                + "Got RTP packet with SeqNum # "
-                + packet.getsequencenumber()
-                + " TimeStamp: "
-                + (0xFFFFFFFFL & packet.gettimestamp()) // cast to long
-                + " ms, of type "
-                + packet.getpayloadtype()
-                + " Size: " + packet.getlength());
+                "---------------- Receiver RTP-Handler --------------------"
+                        + "\r\n"
+                        + "Got RTP packet with SeqNum # "
+                        + packet.getsequencenumber()
+                        + " TimeStamp: "
+                        + (0xFFFFFFFFL & packet.gettimestamp()) // cast to long
+                        + " ms, of type "
+                        + packet.getpayloadtype()
+                        + " Size: " + packet.getlength());
 
         switch (packet.getpayloadtype()) {
             case RTP_PAYLOAD_JPEG:
@@ -576,7 +411,7 @@ public class RtpHandler {
                     lastRtp.put(packet.gettimestamp(), seqNr);
                 }
                 logger.log(Level.FINER, "JPEG-Offset + Marker: "
-                    + packet.getJpegOffset() + " " + packet.getMarker());
+                        + packet.getJpegOffset() + " " + packet.getMarker());
 
                 // set list of same timestamps
                 int ts = packet.gettimestamp();
@@ -591,7 +426,7 @@ public class RtpHandler {
                 tmpTimestamps.add(seqNr);
                 sameTimestamps.put(ts, tmpTimestamps);
                 logger.log(Level.FINER, "RTP: set sameTimestamps: " + (0xFFFFFFFFL & ts)
-                    + " " + tmpTimestamps);
+                        + " " + tmpTimestamps);
                 break;
 
 
@@ -622,57 +457,140 @@ public class RtpHandler {
 
         encryptionMode = mode;
         switch (encryptionMode) {
-        case SRTP:
-            /* Use pre-shared key and salt to avoid key management and
-             * session initialization with a protocol.
-             */
-            try {
-                srtpHandler = new SrtpHandler(
-                        SrtpHandler.EncryptionAlgorithm.AES_CTR,
-                        SrtpHandler.MacAlgorithm.NONE,
-                        defaultKey, defaultSalt, 0);
-            } catch (InvalidKeyException | InvalidAlgorithmParameterException ikex) {
-                System.out.println(ikex);
-            }
-          if (srtpHandler == null) {
-                return false;
-            }
-            break;
-        case JPEG:
-        case JPEG_ATTACK:
-            /* Use pre-shared key and salt to avoid key management and
-             * session initialization with a protocol.
-             */
-            jpegEncryptionHandler = new JpegEncryptionHandler(
-                    defaultKey, defaultSalt);
-            break;
-        case NONE:
-        default:
-            break;
+            case SRTP:
+                /* Use pre-shared key and salt to avoid key management and
+                 * session initialization with a protocol.
+                 */
+                try {
+                    srtpHandler = new SrtpHandler(
+                            SrtpHandler.EncryptionAlgorithm.AES_CTR,
+                            SrtpHandler.MacAlgorithm.NONE,
+                            defaultKey, defaultSalt, 0);
+                } catch (InvalidKeyException | InvalidAlgorithmParameterException ikex) {
+                    System.out.println(ikex);
+                }
+                if (srtpHandler == null) {
+                    return false;
+                }
+                break;
+            case JPEG:
+            case JPEG_ATTACK:
+                /* Use pre-shared key and salt to avoid key management and
+                 * session initialization with a protocol.
+                 */
+                jpegEncryptionHandler = new JpegEncryptionHandler(
+                        defaultKey, defaultSalt);
+                break;
+            case NONE:
+            default:
+                break;
         }
 
         return true;
     }
 
     /**
-     * Set if FEC error correction should be used.
+     * Get the RTP packet with the given sequence number.
+     * This is the main method for getting RTP packets. It currently
+     * includes error correction via FEC, but can be extended in the future.
      *
-     * @param enabled Use the FEC error correction or not.
+     * @param number Sequence number of the RTP packet
+     * @return RTP packet, null if not available and not correctable
      */
-    public void setFecDecryptionEnabled(boolean enabled) {
-        fecDecodingEnabled = enabled;
+    private RTPpacket checkMediaPacket(final int number) {
+        int index = number % 0x10000; // account overflow of SNr (16 Bit)
+        RTPpacket packet = mediaPackets.get(index);
+        logger.log(Level.FINER, "RTP: try get RTP nr: " + index);
+
+        if (packet == null) {
+            statistics.packetsLost++;
+            logger.log(Level.WARNING, "RTP: Media lost: " + index);
+
+            boolean fecCorrectable = fecHandler.checkCorrection(index, mediaPackets);
+            if (fecDecodingEnabled && fecCorrectable) {
+                packet = fecHandler.correctRtp(index, mediaPackets);
+                statistics.correctedPackets++;
+                logger.log(Level.INFO, "---> FEC: correctable: " + index);
+            } else {
+                statistics.notCorrectedPackets++;
+                logger.log(Level.INFO, "---> FEC: not correctable: " + index);
+                return null;
+            }
+        }
+        return packet;
     }
 
-    /**
-     * Set a new group size for the FEC error handling.
-     *
-     * @param newGroupSize new group size
-     */
-    public void setFecGroupSize(int newGroupSize) {
-        fecHandler.setFecGroupSize(newGroupSize);
+
+
+    public void setFecDecryptionEnabled(boolean var1) {
+        this.fecDecodingEnabled = var1;
+    }
+
+    public void setFecGroupSize(int size) {
+        fecGroupSize = size;
+    }
+    public int getFecGroupSize() {
+        return fecGroupSize;
     }
 
 
+    private RTPpacket obtainMediaPacket(int var1) {
+        Logger var2 = Logger.getLogger("global");
+        int var3 = var1 % 65536;
+        RTPpacket var4 = (RTPpacket)this.mediaPackets.get(var3);
+        var2.log(Level.FINE, "FEC: get RTP nu: " + var3);
+        if (var4 == null) {
+            ++this.statistics.packetsLost;
+            var2.log(Level.WARNING, "FEC: Media lost: " + var3);
+            boolean var5 = this.fecHandler.checkCorrection(var3, this.mediaPackets);
+            if (!this.fecDecodingEnabled || !var5) {
+                ++this.statistics.notCorrectedPackets;
+                var2.log(Level.INFO, "---> FEC: not correctable: " + var3);
+                return null;
+            }
 
+            var4 = this.fecHandler.correctRtp(var3, this.mediaPackets);
+            ++this.statistics.correctedPackets;
+            var2.log(Level.INFO, "---> FEC: correctable: " + var3);
+        }
+
+        return var4;
+    }
+
+    private ArrayList<RTPpacket> packetsForNextImage() {
+        Logger var1 = Logger.getLogger("global");
+        ArrayList var2 = new ArrayList();
+        RTPpacket var3 = this.obtainMediaPacket(this.playbackIndex);
+        if (var3 == null) {
+            ++this.statistics.framesLost;
+            return null;
+        } else {
+            var2.add(var3);
+            int var4 = var3.gettimestamp();
+            List var5 = (List)this.sameTimestamps.get(var4);
+            if (var5 == null) {
+                return var2;
+            } else {
+                for(int var6 = 1; var6 < var5.size(); ++var6) {
+                    var2.add(this.obtainMediaPacket((Integer)var5.get(var6)));
+                }
+
+                this.playbackIndex += var5.size() - 1;
+                Level var10001 = Level.FINER;
+                int var10002 = var2.size();
+                var1.log(var10001, "-> Get list of " + var10002 + " RTPs with TS: " + (4294967295L & (long)var4));
+                return var2;
+            }
+        }
+    }
+
+    public static enum EncryptionMode {
+        NONE,
+        SRTP,
+        JPEG,
+        JPEG_ATTACK;
+
+        private EncryptionMode() {
+        }
+    }
 }
-

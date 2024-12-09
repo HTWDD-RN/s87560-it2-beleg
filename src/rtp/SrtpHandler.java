@@ -149,12 +149,12 @@ public class SrtpHandler {
      * @param packet Received packet.
      * @return RTP packet.
      */
-    public RtpPacket retrieveFromSrtp(byte[] packet) {
+    public RTPpacket retrieveFromSrtp(byte[] packet) {
         if (!isInitialized()) {
             return null;
         }
 
-        RtpPacket rtp = new RtpPacket(packet, packet.length);
+        RTPpacket rtp = new RTPpacket(packet, packet.length);
         int seq = rtp.getsequencenumber();
         if (s_l == -1) {
             s_l = (short)seq;
@@ -174,9 +174,9 @@ public class SrtpHandler {
 
         // perform MAC authentication here
         switch (macId) {
-        case NONE:
-            break;
-        // if MAC present, increase suffixLength by 4 (authentication tag)
+            case NONE:
+                break;
+            // if MAC present, increase suffixLength by 4 (authentication tag)
         }
 
         // remove MKI and authentication tag from the packet
@@ -210,7 +210,7 @@ public class SrtpHandler {
      * @param packet The packet which will be transformed.
      * @return The SRTP packet as byte array.
      */
-    public byte[] transformToSrtp(RtpPacket packet) {
+    public byte[] transformToSrtp(RTPpacket packet) {
         if (!isInitialized()) {
             return null;
         }
@@ -236,8 +236,8 @@ public class SrtpHandler {
 
         // perform MAC authentication here
         switch (macId) {
-        case NONE:
-            break;
+            case NONE:
+                break;
         }
 
         if (seq > (1 << 16)) {
@@ -301,11 +301,11 @@ public class SrtpHandler {
 
     private void computeInitialValues() {
         switch (cipherId) {
-        case AES_CTR:
-            n_b = 16;
-            break;
-        case NONE:
-            break;
+            case AES_CTR:
+                n_b = 16;
+                break;
+            case NONE:
+                break;
         }
 
         if (masterKey != null && masterSalt != null) {
@@ -339,12 +339,12 @@ public class SrtpHandler {
 
     private byte[] decryptPayload(long index, byte[] payload) {
         switch (cipherId) {
-        case AES_CTR:
-            return aesCrypt(false, index, payload);
-        case NONE:
-            return payload;
-        default:
-            return null;
+            case AES_CTR:
+                return aesCrypt(false, index, payload);
+            case NONE:
+                return payload;
+            default:
+                return null;
         }
     }
 
@@ -394,12 +394,12 @@ public class SrtpHandler {
 
     private byte[] encryptPayload(long index, byte[] payload) {
         switch (cipherId) {
-        case AES_CTR:
-            return aesCrypt(true, index, payload);
-        case NONE:
-            return payload;
-        default:
-            return null;
+            case AES_CTR:
+                return aesCrypt(true, index, payload);
+            case NONE:
+                return payload;
+            default:
+                return null;
         }
     }
 
@@ -459,38 +459,38 @@ public class SrtpHandler {
     public boolean testKeyDerivation() {
         boolean testPassed = true;
         masterKey = new byte[]{
-            (byte)0xE1, (byte)0xF9, (byte)0x7A, (byte)0x0D, (byte)0x3E, (byte)0x01, (byte)0x8B, (byte)0xE0,
-            (byte)0xD6, (byte)0x4F, (byte)0xA3, (byte)0x2C, (byte)0x06, (byte)0xDE, (byte)0x41, (byte)0x39};
+                (byte)0xE1, (byte)0xF9, (byte)0x7A, (byte)0x0D, (byte)0x3E, (byte)0x01, (byte)0x8B, (byte)0xE0,
+                (byte)0xD6, (byte)0x4F, (byte)0xA3, (byte)0x2C, (byte)0x06, (byte)0xDE, (byte)0x41, (byte)0x39};
         masterSalt = new byte[]{
-            (byte)0x0E, (byte)0xC6, (byte)0x75, (byte)0xAD, (byte)0x49, (byte)0x8A, (byte)0xFE,
-            (byte)0xEB, (byte)0xB6,	(byte)0x96, (byte)0x0B, (byte)0x3A, (byte)0xAB, (byte)0xE6};
+                (byte)0x0E, (byte)0xC6, (byte)0x75, (byte)0xAD, (byte)0x49, (byte)0x8A, (byte)0xFE,
+                (byte)0xEB, (byte)0xB6,	(byte)0x96, (byte)0x0B, (byte)0x3A, (byte)0xAB, (byte)0xE6};
         computeInitialValues();
 
         byte[] r_encryption = new byte[]{ // reference value
-            (byte)0xC6, (byte)0x1E, (byte)0x7A, (byte)0x93, (byte)0x74, (byte)0x4F, (byte)0x39, (byte)0xEE,
-            (byte)0x10, (byte)0x73, (byte)0x4A, (byte)0xFE, (byte)0x3F, (byte)0xF7, (byte)0xA0, (byte)0x87};
+                (byte)0xC6, (byte)0x1E, (byte)0x7A, (byte)0x93, (byte)0x74, (byte)0x4F, (byte)0x39, (byte)0xEE,
+                (byte)0x10, (byte)0x73, (byte)0x4A, (byte)0xFE, (byte)0x3F, (byte)0xF7, (byte)0xA0, (byte)0x87};
         byte[] k_encryption = computeSessionKey(0, Label.ENCRYPTION, n_e);
         testPassed &= Arrays.equals(r_encryption, k_encryption);
 
         byte[] r_salting = new byte[]{ // reference value
-            (byte)0x30, (byte)0xCB, (byte)0xBC, (byte)0x08, (byte)0x86, (byte)0x3D, (byte)0x8C,
-            (byte)0x85, (byte)0xD4, (byte)0x9D, (byte)0xB3, (byte)0x4A, (byte)0x9A, (byte)0xE1};
+                (byte)0x30, (byte)0xCB, (byte)0xBC, (byte)0x08, (byte)0x86, (byte)0x3D, (byte)0x8C,
+                (byte)0x85, (byte)0xD4, (byte)0x9D, (byte)0xB3, (byte)0x4A, (byte)0x9A, (byte)0xE1};
         byte[] k_salting = computeSessionKey(0, Label.SALTING, n_s);
         testPassed &= Arrays.equals(r_salting, k_salting);
 
         byte[] r_auth = new byte[]{ // reference value
-            (byte)0xCE, (byte)0xBE, (byte)0x32, (byte)0x1F, (byte)0x6F, (byte)0xF7, (byte)0x71, (byte)0x6B,
-            (byte)0x6F, (byte)0xD4, (byte)0xAB, (byte)0x49, (byte)0xAF, (byte)0x25, (byte)0x6A, (byte)0x15,
-            (byte)0x6D, (byte)0x38, (byte)0xBA, (byte)0xA4, (byte)0x8F, (byte)0x0A, (byte)0x0A, (byte)0xCF,
-            (byte)0x3C, (byte)0x34, (byte)0xE2, (byte)0x35, (byte)0x9E, (byte)0x6C, (byte)0xDB, (byte)0xCE,
-            (byte)0xE0, (byte)0x49, (byte)0x64, (byte)0x6C, (byte)0x43, (byte)0xD9, (byte)0x32, (byte)0x7A,
-            (byte)0xD1, (byte)0x75, (byte)0x57, (byte)0x8E, (byte)0xF7, (byte)0x22, (byte)0x70, (byte)0x98,
-            (byte)0x63, (byte)0x71, (byte)0xC1, (byte)0x0C, (byte)0x9A, (byte)0x36, (byte)0x9A, (byte)0xC2,
-            (byte)0xF9, (byte)0x4A, (byte)0x8C, (byte)0x5F, (byte)0xBC, (byte)0xDD, (byte)0xDC, (byte)0x25,
-            (byte)0x6D, (byte)0x6E, (byte)0x91, (byte)0x9A, (byte)0x48, (byte)0xB6, (byte)0x10, (byte)0xEF,
-            (byte)0x17, (byte)0xC2, (byte)0x04, (byte)0x1E, (byte)0x47, (byte)0x40, (byte)0x35, (byte)0x76,
-            (byte)0x6B, (byte)0x68, (byte)0x64, (byte)0x2C, (byte)0x59, (byte)0xBB, (byte)0xFC, (byte)0x2F,
-            (byte)0x34, (byte)0xDB, (byte)0x60, (byte)0xDB, (byte)0xDF, (byte)0xB2};
+                (byte)0xCE, (byte)0xBE, (byte)0x32, (byte)0x1F, (byte)0x6F, (byte)0xF7, (byte)0x71, (byte)0x6B,
+                (byte)0x6F, (byte)0xD4, (byte)0xAB, (byte)0x49, (byte)0xAF, (byte)0x25, (byte)0x6A, (byte)0x15,
+                (byte)0x6D, (byte)0x38, (byte)0xBA, (byte)0xA4, (byte)0x8F, (byte)0x0A, (byte)0x0A, (byte)0xCF,
+                (byte)0x3C, (byte)0x34, (byte)0xE2, (byte)0x35, (byte)0x9E, (byte)0x6C, (byte)0xDB, (byte)0xCE,
+                (byte)0xE0, (byte)0x49, (byte)0x64, (byte)0x6C, (byte)0x43, (byte)0xD9, (byte)0x32, (byte)0x7A,
+                (byte)0xD1, (byte)0x75, (byte)0x57, (byte)0x8E, (byte)0xF7, (byte)0x22, (byte)0x70, (byte)0x98,
+                (byte)0x63, (byte)0x71, (byte)0xC1, (byte)0x0C, (byte)0x9A, (byte)0x36, (byte)0x9A, (byte)0xC2,
+                (byte)0xF9, (byte)0x4A, (byte)0x8C, (byte)0x5F, (byte)0xBC, (byte)0xDD, (byte)0xDC, (byte)0x25,
+                (byte)0x6D, (byte)0x6E, (byte)0x91, (byte)0x9A, (byte)0x48, (byte)0xB6, (byte)0x10, (byte)0xEF,
+                (byte)0x17, (byte)0xC2, (byte)0x04, (byte)0x1E, (byte)0x47, (byte)0x40, (byte)0x35, (byte)0x76,
+                (byte)0x6B, (byte)0x68, (byte)0x64, (byte)0x2C, (byte)0x59, (byte)0xBB, (byte)0xFC, (byte)0x2F,
+                (byte)0x34, (byte)0xDB, (byte)0x60, (byte)0xDB, (byte)0xDF, (byte)0xB2};
         byte[] k_auth = computeSessionKey(0, Label.MAC, 94);
         testPassed &= Arrays.equals(r_auth, k_auth);
 
@@ -499,11 +499,11 @@ public class SrtpHandler {
 
     public static void main(String[] args) {
         byte[] masterKey = new byte[]{
-            (byte)0xE1, (byte)0xF9, (byte)0x7A, (byte)0x0D, (byte)0x3E, (byte)0x01, (byte)0x8B, (byte)0xE0,
-            (byte)0xD6, (byte)0x4F, (byte)0xA3, (byte)0x2C, (byte)0x06, (byte)0xDE, (byte)0x41, (byte)0x39};
+                (byte)0xE1, (byte)0xF9, (byte)0x7A, (byte)0x0D, (byte)0x3E, (byte)0x01, (byte)0x8B, (byte)0xE0,
+                (byte)0xD6, (byte)0x4F, (byte)0xA3, (byte)0x2C, (byte)0x06, (byte)0xDE, (byte)0x41, (byte)0x39};
         byte[] masterSalt = new byte[]{
-            (byte)0x0E, (byte)0xC6, (byte)0x75, (byte)0xAD, (byte)0x49, (byte)0x8A, (byte)0xFE,
-            (byte)0xEB, (byte)0xB6,	(byte)0x96, (byte)0x0B, (byte)0x3A, (byte)0xAB, (byte)0xE6};
+                (byte)0x0E, (byte)0xC6, (byte)0x75, (byte)0xAD, (byte)0x49, (byte)0x8A, (byte)0xFE,
+                (byte)0xEB, (byte)0xB6,	(byte)0x96, (byte)0x0B, (byte)0x3A, (byte)0xAB, (byte)0xE6};
 
         try {
             SrtpHandler srtp = new SrtpHandler(SrtpHandler.EncryptionAlgorithm.AES_CTR,
@@ -526,7 +526,7 @@ public class SrtpHandler {
 
     public static String hexdump(byte[] data) {
         String b = "";
-		for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < data.length; i++) {
             b += String.format("%2s", Integer.toHexString(data[i] & 0xFF)).replace(' ', '0');
             if (data.length > 16 && (i + 1) % 16 == 0 && i != 0) {
                 b += "\n";
@@ -537,9 +537,9 @@ public class SrtpHandler {
 
     public static boolean testPacketProcessing(SrtpHandler sender, SrtpHandler receiver) {
         byte[] data = new byte[1024];
-        RtpPacket packet = new RtpPacket(26, 1234, 9000, 1, data, data.length);
+        RTPpacket packet = new RTPpacket(26, 1234, 9000, 1, data, data.length);
         byte[] srtp = sender.transformToSrtp(packet);
-        RtpPacket received = receiver.retrieveFromSrtp(srtp);
+        RTPpacket received = receiver.retrieveFromSrtp(srtp);
         byte[] receivedPayload = received.getpayload();
 
         boolean passed = true;
@@ -551,4 +551,3 @@ public class SrtpHandler {
         return passed;
     }
 }
-

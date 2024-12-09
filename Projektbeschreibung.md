@@ -27,7 +27,7 @@ Die bereitgestellten Kassen mit der Endung `Demo` sind abstrakte Klassen, die no
 ### RTSP- und RTP-Klassen für Server und Client
 * [rtsp.RtspDemo](src/rtsp/RtspDemo.java): Implementierung des RTSP-Protokolls für Client und Server (abstrakte Klasse)
 * rtsp.Rtsp: TODO
-* [rtp.RtpHandler](src/rtp/RtpHandler.java): Verarbeitung von RTP-Paketen
+* [rtp.RtpHandler](src/rtp/RtpHandler.module): Verarbeitung von RTP-Paketen
 * [rtp.RtpPacketDemo](src/rtp/RtpPacketDemo.java): Funktionalität zur Unterstützung von RTP-Paketen (abstrakte Klasse)
 * rtp.RtpPacket: TODO
 * [rtp.FecHandlerDemo](src/rtp/FecHandlerDemo.java): Unterstützung der Fehlerkorrektur mittels FEC (abstrakte Klasse)
