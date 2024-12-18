@@ -18,7 +18,7 @@ import video.VideoMetadata;
 
 // https://github.com/tyazid/RTSP-Java-UrlConnection
 
-abstract class  RtspDemo {
+public abstract class  RtspDemo {
   static final String CRLF = "\r\n";  // Line-Ending for Internet Protocols
    URI url;
   Socket RTSPsocket; // socket used to send/receive RTSP messages

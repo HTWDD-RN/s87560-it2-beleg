@@ -19,6 +19,7 @@ import javax.imageio.ImageIO;
 import com.github.sarxos.webcam.Webcam;
 import rtp.RtpHandler;
 import rtsp.Rtsp;
+import rtsp.RtspDemo;
 import utils.CustomLoggingHandler;
 import video.VideoMetadata;
 import video.VideoReader;
@@ -28,7 +29,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
   InetAddress ClientIPAddr; // Client IP address
   static int startGroupSize = 2;
   RtpHandler rtpHandler;
-  Rtsp rtsp = null;
+  RtspDemo rtsp = null;
   static private double lossRate = 0.0;  // Channel errors
 
   // **************** GUI **************************
@@ -317,7 +318,37 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
         new BufferedReader(new InputStreamReader(RTSPsocket.getInputStream()));
     RTSPBufferedWriter =
         new BufferedWriter(new OutputStreamWriter(RTSPsocket.getOutputStream()));
-    server.rtsp = new Rtsp(RTSPBufferedReader, RTSPBufferedWriter);
+    server.rtsp = new RtspDemo(RTSPBufferedReader, RTSPBufferedWriter) {
+      @Override
+      public boolean play() {
+        return false;
+      }
+
+      @Override
+      public boolean pause() {
+        return false;
+      }
+
+      @Override
+      public boolean teardown() {
+        return false;
+      }
+
+      @Override
+      public void describe() {
+
+      }
+
+      @Override
+      public void options() {
+
+      }
+
+      @Override
+      public void send_RTSP_request(String request_type) {
+
+      }
+    };
   }
 
 

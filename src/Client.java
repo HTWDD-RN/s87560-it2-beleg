@@ -5,6 +5,13 @@ usage: java Client [Server hostname] [Server RTSP listening port] [Video file re
 
 ---------------------- */
 
+/* ------------------
+Client
+usage: java Client [Server hostname] [Server RTSP listening port] [Video file requested]
+
+
+---------------------- */
+
 import java.awt.image.BufferedImage;
 import java.net.*;
 import java.text.DecimalFormat;
@@ -15,9 +22,8 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.Timer;
 import rtp.ReceptionStatistic;
-import rtsp.Rtsp;
 import rtp.RtpHandler;
-
+import rtsp.Rtsp;
 import utils.CustomLoggingHandler;
 import java.awt.Image;
 
@@ -63,37 +69,7 @@ public class Client  {
     theClient.view.pufferNumber.setText(JITTER_BUFFER_SIZE.toString());
     theClient.view.setRtpHandler(rtpHandler);
 
-    rtsp = new Rtsp(url, RTP_RCV_PORT) {
-      @Override
-      public boolean play() {
-        return false;
-      }
-
-      @Override
-      public boolean pause() {
-        return false;
-      }
-
-      @Override
-      public boolean teardown() {
-        return false;
-      }
-
-      @Override
-      public void describe() {
-
-      }
-
-      @Override
-      public void options() {
-
-      }
-
-      @Override
-      public void send_RTSP_request(String request_type) {
-
-      }
-    };
+    rtsp = new Rtsp(url, RTP_RCV_PORT);
   }
 
 
@@ -193,7 +169,7 @@ public class Client  {
       }
 
       logger.log(Level.FINER, "----------------- Play timer --------------------");
-      BufferedImage bi = JpegDisplay.nextPlaybackImage( rtpHandler, rs, view.checkBoxEco.isSelected());
+      BufferedImage bi = jpegDisplay.nextPlaybackImage( rtpHandler, rs, view.checkBoxEco.isSelected());
       if (bi != null)  view.iconLabel.setIcon( new ImageIcon(bi) );
     }
 

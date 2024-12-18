@@ -3,6 +3,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -12,6 +13,7 @@ import rtp.RtpHandler;
 
 abstract class JpegDisplayDemo {
   static BufferedImage lastImage;
+
 
 /*
              3          2          1          0
@@ -40,6 +42,7 @@ abstract class JpegDisplayDemo {
   abstract BufferedImage setTransparency(BufferedImage back, BufferedImage foreground, List<Integer> list);
   //TASK implement method in class JpegDisplay
 
+
   /**
    * Get the next image from RTP-Handler and make error concealment using transparency
    * @param rH RtpHandler to get image payload and lost slices
@@ -66,13 +69,13 @@ abstract class JpegDisplayDemo {
     InputStream is = new ByteArrayInputStream(payload); // read newImage from payload
     try {
       newImage = ImageIO.read(is);
-      //newImage = ImageIO.read(new File("videos/htw-restart-1-error.jpeg")); // Test
+//      newImage = ImageIO.read(new File("videos/htw-restart-1-error.jpeg")); // Test
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
     if (lastImage == null) lastImage = newImage;    // save first image
     // set transparency in case of error concealment
-    JpegDisplayDemo js = new JpegDisplay();
+    JpegDisplayDemo js = new jpegDisplay();
     combined = (eco) ? js.setTransparency(lastImage, newImage, list) : newImage;
     lastImage = combined;  // update
     return setText(combined, rs.requestedFrames, list.toString());
