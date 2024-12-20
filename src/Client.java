@@ -522,7 +522,7 @@ public class Client {
       ListIterator<String> respIter = respLines.listIterator(0);
       StringTokenizer tokens = new StringTokenizer(respIter.next());
       tokens.nextToken(); // skip over the RTSP version
-      reply_code = Integer.parseInt(tokens.nextToken());...
+      reply_code = Integer.parseInt(tokens.nextToken());
 
       while (respIter.hasNext()) {
         line = respIter.next();
