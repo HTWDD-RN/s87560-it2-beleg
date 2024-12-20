@@ -28,6 +28,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
 import javax.swing.*;
+import rtsp.Rtsp;
 import javax.swing.Timer;
 
 public class Client {
@@ -109,12 +110,7 @@ public class Client {
 
     // build GUI
     // Frame
-    f.addWindowListener(
-            new WindowAdapter() {
-              public void windowClosing(WindowEvent e) {
-                System.exit(0);
-              }
-            });
+
 
     // Buttons
     buttonPanel.setLayout(new GridLayout(1, 0));
@@ -517,12 +513,13 @@ public class Client {
 
       String line;
       do {
+        System.out.println("loop");
         line = RTSPBufferedReader.readLine();
-        logger.log(Level.CONFIG, line);
+        System.out.println(("after readline"));
+        System.out.println(line);
         if (!line.equals("")) respLines.add(line);
       } while (!line.equals(""));
       ListIterator<String> respIter = respLines.listIterator(0);
-
       StringTokenizer tokens = new StringTokenizer(respIter.next());
       tokens.nextToken(); // skip over the RTSP version
       reply_code = Integer.parseInt(tokens.nextToken());
@@ -616,8 +613,9 @@ public class Client {
       if (request_type.equals("SETUP")) rtsp = rtsp + "/trackID=0";
 
       String rtspReq = "";
+      rtspReq = request_type + " " + rtsp + " RTSP/1.0" + CRLF;
       //TASK Complete the RTSP request method line
-      // rtspReq = ....
+      rtspReq += "CSeq: " + RTSPSeqNb + CRLF;
 
       // TASK write the CSeq line:
       // rtspReq += ....
@@ -627,7 +625,7 @@ public class Client {
       // otherwise, write the Session line from the RTSPid field
       if (request_type.equals("SETUP")) {
         //TASK Complete the Transport Attribute
-        rtspReq += "Transport:";
+        rtspReq += "Transport: "+"RTP/UDP;unicast;client_port=" + RTP_RCV_PORT + "-" + (RTP_RCV_PORT + 1) + CRLF;
       }
 
       // SessionIS if available
