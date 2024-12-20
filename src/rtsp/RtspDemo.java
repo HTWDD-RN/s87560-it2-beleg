@@ -128,7 +128,6 @@ public abstract class  RtspDemo {
    */
   public boolean connectServer () {
     try {
-
       RTSPBufferedReader =
           new BufferedReader(new InputStreamReader(RTSPsocket.getInputStream()));
       RTSPBufferedWriter =
@@ -168,7 +167,9 @@ public abstract class  RtspDemo {
     }
   }
 
-  public abstract boolean play();
+    public abstract void getDescribe();
+
+    public abstract boolean play();
 
   public abstract boolean pause();
 

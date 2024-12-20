@@ -632,8 +632,13 @@ public class Client {
       if (!RTSPid.equals("0")) {
         rtspReq += "Session: " + RTSPid + CRLF;
       }
+      if (RTSPBufferedWriter == null){
+        logger.log(Level.SEVERE, "RTSPBufferedWriter ist not intilized");
+      }
 
       logger.log(Level.CONFIG, rtspReq); // console debug
+      logger.log(Level.INFO, "RTSP " + rtsp) ;
+      logger.log(Level.INFO,"RTSP request " + rtspReq);
       // Use the RTSPBufferedWriter to write to the RTSP socket
       RTSPBufferedWriter.write(rtspReq + CRLF);
       RTSPBufferedWriter.flush();
