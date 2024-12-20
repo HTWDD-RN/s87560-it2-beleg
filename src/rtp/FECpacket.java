@@ -1,4 +1,5 @@
 package rtp;/*
+    /*
     Information according to RFC 5109
     Implementation: http://apidocs.jitsi.org/libjitsi/
 
@@ -56,7 +57,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class FecPacket extends RTPpacket {
+public class FECpacket extends RTPpacket {
   private static final int FEC_HEADER_SIZE = 10;
   private static final int ULP_HEADER_SIZE0 = 4;
   private static final int ULP_HEADER_SIZE1 = 8;
@@ -96,8 +97,8 @@ public class FecPacket extends RTPpacket {
    * @param maxGroupSize maximum supported group size
    * @param snBase base for sequence nr.
    */
-  public FecPacket(int PType, int Framenb, int Time, int maxGroupSize, int snBase) {
-    super(PType, Framenb, Time, 1, new byte[0], 0);
+  public FECpacket(int PType, int Framenb, int Time, int maxGroupSize, int snBase) {
+    super(PType, Framenb, Time, new byte[0], 0);
     setFecHeader(maxGroupSize, snBase);
     setUlpLevelHeader(0,0,maxGroupSize);
   }
@@ -110,7 +111,7 @@ public class FecPacket extends RTPpacket {
    * @param packet bitstream
    * @param packet_size size
    */
-  public FecPacket(byte[] packet, int packet_size) {
+  public FECpacket(byte[] packet, int packet_size) {
     // packet includes FEC header
     // builds the RTP header
     super(packet, packet_size);
@@ -340,7 +341,7 @@ public class FecPacket extends RTPpacket {
    */
   public RTPpacket getLostRtp(int snr) {
     // TODO get the correct SNr
-    return new RTPpacket(ptRecovery, snr  ,tsRecovery, M, payload, lengthRecovery);
+    return new RTPpacket(ptRecovery, snr  ,tsRecovery, payload, lengthRecovery);
   }
 
 

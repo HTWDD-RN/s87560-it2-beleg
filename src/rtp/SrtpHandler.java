@@ -98,7 +98,7 @@ public class SrtpHandler {
     private byte[] k_s = null; // session salting key
 
     /**
-     * Create a rtp.SrtpHandler with it's cryptographic context.
+     * Create a SrtpHandler with it's cryptographic context.
      *
      * @param cipherId The algorithm and mode to be used for encryption.
      * @param macId The algorithm used for message authentication.
@@ -449,7 +449,7 @@ public class SrtpHandler {
     /**
      * Test the key derivation function.
      *
-     * The rtp.SrtpHandler can be initialized with null-Values, because
+     * The SrtpHandler can be initialized with null-Values, because
      * this method sets all necessary values.
      *
      * The test values are from Section B.3 of RFC 3711.
@@ -537,7 +537,7 @@ public class SrtpHandler {
 
     public static boolean testPacketProcessing(SrtpHandler sender, SrtpHandler receiver) {
         byte[] data = new byte[1024];
-        RTPpacket packet = new RTPpacket(26, 1234, 9000, 1, data, data.length);
+        RTPpacket packet = new RTPpacket(26, 1234, 9000, data, data.length);
         byte[] srtp = sender.transformToSrtp(packet);
         RTPpacket received = receiver.retrieveFromSrtp(srtp);
         byte[] receivedPayload = received.getpayload();

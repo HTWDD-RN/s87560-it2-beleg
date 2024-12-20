@@ -24,6 +24,8 @@ public class Rtsp extends RtspDemo {
 
     public Rtsp(URI url, int rtpRcvPort) {
         super(url, rtpRcvPort);
+        this.url = url;
+
     }
 
     public void setUrl(String url) {
@@ -76,17 +78,7 @@ public class Rtsp extends RtspDemo {
 
 
 
-    public boolean connectServer() {
-        try {
-            RTSPsocket = new Socket(url.getHost(), url.getPort());
-            RTSPBufferedReader = new BufferedReader(new InputStreamReader(RTSPsocket.getInputStream()));
-            RTSPBufferedWriter = new BufferedWriter(new OutputStreamWriter(RTSPsocket.getOutputStream()));
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Connection failed: " + e.getMessage());
-            return false;
-        }
-        return true;
-    }
+
 
     public boolean setup() {
         if (state != State.INIT) {

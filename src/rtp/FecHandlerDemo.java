@@ -18,10 +18,10 @@ import java.util.logging.Logger;
 
 abstract class FecHandlerDemo {
   RTPpacket rtp;
-  FecPacket fec;
+  FECpacket fec;
 
   // Receiver
-  HashMap<Integer, FecPacket> fecStack = new HashMap<>(); // list of fec packets
+  HashMap<Integer, FECpacket> fecStack = new HashMap<>(); // list of fec packets
   HashMap<Integer, Integer> fecNr = new HashMap<>(); // Snr of corresponding fec packet
   HashMap<Integer, List<Integer>> fecList = new HashMap<>(); // list of involved media packets
 
@@ -78,7 +78,7 @@ abstract class FecHandlerDemo {
     // init new FEC packet if necessary
     if (fec == null) {
       fec =
-          new FecPacket(
+          new FECpacket(
               FEC_PT, fecSeqNr, rtp.gettimestamp(), fecGroupSize, rtp.getsequencenumber());
       fec.setUlpLevelHeader(0, 0, fecGroupSize);
     }
@@ -134,7 +134,7 @@ abstract class FecHandlerDemo {
    */
   public void rcvFecPacket(RTPpacket rtp) {
     // build fec from rtp
-    fec = new FecPacket(rtp.getpacket(), rtp.getpacket().length);
+    fec = new FECpacket(rtp.getpacket(), rtp.getpacket().length);
     // TASK remove comment for debugging
     // fec.printHeaders();
 

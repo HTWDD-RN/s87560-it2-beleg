@@ -19,7 +19,7 @@ import video.VideoMetadata;
 // https://github.com/tyazid/RTSP-Java-UrlConnection
 
 public abstract class  RtspDemo {
-  static final String CRLF = "\r\n";  // Line-Ending for Internet Protocols
+
    URI url;
   Socket RTSPsocket; // socket used to send/receive RTSP messages
 
@@ -31,16 +31,23 @@ public abstract class  RtspDemo {
     }
   }
 
-
+  // input and output streeam filters
+  public static String rtspServer;
+  public static int rtspPort;
+  public static String rtspUrl;
+  static String VideoFileName; // video file to request to the server
   int RTP_RCV_PORT;         // port where the client will receive the RTP packets
   BufferedWriter RTSPBufferedWriter;  // TCP-Stream for RTSP-Requests
   BufferedReader RTSPBufferedReader; // TCP-Stream for RTSP-Responses
   int RTSPSeqNb = 0;    // RTSP sequence number
   String RTSPid = "0";  // RTSP session number (given by the RTSP Server), 0: not initialized
+  static final String CRLF = "\r\n";
+  static final String nl = System.getProperty("line.separator");
 
-  public int getFramerate() {
-    return framerate != 0 ? framerate : DEFAULT_FPS;
-  }
+
+  //  Video constants:
+  // ___________
+ static final int FRAME_RATE = 40;
   int framerate = 0;     // framerate of the video (given by the RTSP Server via SDP)
   final int DEFAULT_FPS = 25; // default framerate if not available
   public double getDuration() {
@@ -59,8 +66,8 @@ public abstract class  RtspDemo {
    * Get the video file name
    * @return filename without path, e.g. htw.mjpeg
    */
-  public String getVideoFileName() {    return VideoFileName;  }
-  String VideoFileName;     // video file requested from the client
+//  public String getVideoFileName() {    return VideoFileName;  }
+//  String VideoFileName;     // video file requested from the client
 
   public void setVideoMeta(VideoMetadata meta) {
     this.meta = meta;
@@ -79,6 +86,10 @@ public abstract class  RtspDemo {
     return FEC_dest_port;
   }
   private int FEC_dest_port; // destination port for RTP-FEC packets  (RTP or RTP+2)
+  // rtsp states
+  static final int INIT = 0;
+  static final int READY = 1;
+  static final int PLAYING = 2;
   static final int SETUP = 3;
   static final int PLAY = 4;
   static final int PAUSE = 5;
@@ -117,7 +128,7 @@ public abstract class  RtspDemo {
    */
   public boolean connectServer () {
     try {
-      RTSPsocket = new Socket( url.getHost(), url.getPort()); // RTSP-connection
+
       RTSPBufferedReader =
           new BufferedReader(new InputStreamReader(RTSPsocket.getInputStream()));
       RTSPBufferedWriter =

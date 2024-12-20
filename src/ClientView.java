@@ -47,13 +47,13 @@ public class ClientView  {
   JCheckBox checkBoxEco = new JCheckBox("nutze ECO");
   ButtonGroup encryptionButtons = null;
 
-  Client.ButtonListener client;
+  Client.setupButtonListener client;
   RtpHandler rtpHandler;
 
   public void setRtpHandler(RtpHandler rtpHandler) {
     this.rtpHandler = rtpHandler;
   }
-  public ClientView(Client.ButtonListener client) {
+  public ClientView(Client.setupButtonListener client) {
      this.client = client;
     initView();
   }

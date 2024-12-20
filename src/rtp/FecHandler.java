@@ -1,6 +1,6 @@
 package rtp;
 
-import rtp.FecPacket;
+import rtp.FECpacket;
 import rtp.RTPpacket;
 
 import java.util.ArrayList;
@@ -12,8 +12,8 @@ import java.util.logging.Logger;
 
 public class FecHandler {
     RTPpacket rtp;
-    FecPacket fec;
-    HashMap<Integer, FecPacket> fecStack = new HashMap();
+    FECpacket fec;
+    HashMap<Integer, FECpacket> fecStack = new HashMap();
     HashMap<Integer, Integer> fecNr = new HashMap();
     HashMap<Integer, List<Integer>> fecList = new HashMap();
     int playCounter = 0;
@@ -43,7 +43,7 @@ public class FecHandler {
 
     public void setRtp(RTPpacket var1) {
         if (this.fec == null) {
-            this.fec = new FecPacket(this.FEC_PT, this.fecSeqNr, var1.gettimestamp(), this.fecGroupSize, var1.getsequencenumber());
+            this.fec = new FECpacket(this.FEC_PT, this.fecSeqNr, var1.gettimestamp(), this.fecGroupSize, var1.getsequencenumber());
             this.fec.setUlpLevelHeader(0, 0, this.fecGroupSize);
         }
 
@@ -74,7 +74,7 @@ public class FecHandler {
 
     public void rcvFecPacket(RTPpacket var1) {
         Logger var2 = Logger.getLogger("global");
-        this.fec = new FecPacket(var1.getpacket(), var1.getpacket().length);
+        this.fec = new FECpacket(var1.getpacket(), var1.getpacket().length);
         this.fec.printHeaders();
         int var3 = this.fec.getsequencenumber();
         this.fecSeqNr = var3;
@@ -118,7 +118,7 @@ public class FecHandler {
     }
 
     public RTPpacket correctRtp(int var1, HashMap<Integer, RTPpacket> var2) {
-        FecPacket var3 = (FecPacket)this.fecStack.get(this.fecNr.get(var1));
+        FECpacket var3 = (FECpacket)this.fecStack.get(this.fecNr.get(var1));
         Iterator var4 = ((List)this.fecList.get(var1)).iterator();
 
         while(var4.hasNext()) {

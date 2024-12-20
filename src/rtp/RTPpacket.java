@@ -1,5 +1,4 @@
 package rtp;
-import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,19 +44,19 @@ public class RTPpacket {
     // --------------------------
     // Constructor of an RTPpacket object from header fields and payload bitstream
     // --------------------------
-    public RTPpacket(int PType, int Framenb, int Time, int Mar, byte[] data, int data_length) {
+    public RTPpacket(int PType, int Framenb, int Time, byte[] data, int data_length) {
         // fill by default header fields:
         Version = 2;
         Padding = 0;
         Extension = 0;
         CC = 0;
+        Marker = 1;
         Ssrc = 0;
 
         // fill changing header fields:
         SequenceNumber = Framenb;
         TimeStamp = Time;
         PayloadType = PType;
-        Marker = Mar;
 
         // build the header bistream:
         // --------------------------
@@ -68,14 +67,43 @@ public class RTPpacket {
         // --------------------------
         payload_size = data_length;
         payload = new byte[data_length];
+
+        // fill payload array of byte from data (given in parameter of the constructor)
+        System.arraycopy(data, 0, payload, 0, data_length);
+
+        // ! Do not forget to uncomment method printheader() below, if desired !
     }
 
+
+    public void setRtpHeader() {
+        //TASK fill the header array of byte with RTP header fields
+    /*
+    header[0] =
+    header[1] =
+    header[2] =
+    header[3] =
+    header[4] =
+    header[5] =
+    header[6] =
+    header[7] =
+    header[8] =
+    header[8] =
+    header[10] =
+    header[11] =
+     */
+    }
+
+
+    // --------------------------
+    // Constructor of an RTPpacket object from the packet bistream
+    // --------------------------
     public RTPpacket(byte[] packet, int packet_size) {
         // fill default fields:
         Version = 2;
         Padding = 0;
         Extension = 0;
         CC = 0;
+        Marker = 0;
         Ssrc = 0;
 
         // check if total packet size is lower than the header size
@@ -91,7 +119,6 @@ public class RTPpacket {
 
             // interpret the changing fields of the header:
             PayloadType = header[1] & 127;
-            Marker = header[1] >> 7 & 1;
             SequenceNumber = unsigned_int(header[3]) + 256 * unsigned_int(header[2]);
             TimeStamp =
                     unsigned_int(header[7])
@@ -109,33 +136,11 @@ public class RTPpacket {
         return (payload_size);
     }
 
-
-
-    public void setRtpHeader() {
-
-        //COMPLETED
-        header[0] = (byte)(Version << 6 | Padding << 5 | Extension << 4 | CC);
-        header[1] = (byte)(Marker << 7 | PayloadType & 0x000000FF);
-        header[2] = (byte)(SequenceNumber >> 8);
-        header[3] = (byte)(SequenceNumber & 0xFF);
-        header[4] = (byte)(TimeStamp >> 24);
-        header[5] = (byte)(TimeStamp >> 16);
-        header[6] = (byte)(TimeStamp >> 8);
-        header[7] = (byte)(TimeStamp & 0xFF);
-        header[8] = (byte)(Ssrc >> 24);
-        header[9] = (byte)(Ssrc >> 16);
-        header[10] = (byte)(Ssrc >> 8);
-        header[11] = (byte)(Ssrc & 0xFF);
-
-    }
-
     public byte[] getpayload() {
         byte[] data = new byte[payload_size];
         System.arraycopy(payload, 0, data, 0, payload_size);
         return data;
     }
-
-
 
 
     // --------------------------
@@ -191,19 +196,6 @@ public class RTPpacket {
     public int getsequencenumber() {
         return (SequenceNumber);
     }
-
-    public int getMarker() {
-        return Marker;
-    }
-
-    public int getJpegOffset() {
-        //byteArrayToInt(Arrays.copyOfRange(payload, 1, 4)); // from rtp.JpegFrame.java
-        ByteBuffer wrapped = ByteBuffer.wrap(payload,0,4);
-        wrapped.put(0, (byte) 0);
-        return wrapped.getInt();
-    }
-
-
 
     // --------------------------
     // getpayloadtype
