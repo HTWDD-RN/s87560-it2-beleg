@@ -385,9 +385,9 @@ public class RtpHandler {
             statistics.packetsLost++;
             logger.log(Level.WARNING, "FEC: Media lost: " + index);
 
-            boolean fecCorrectable = fecHandler.checkCorrection(index, mediaPackets);
+            boolean fecCorrectable = fecHandler.checkCorrection(index);
             if (fecDecodingEnabled && fecCorrectable) {
-                packet = fecHandler.correctRtp(index, mediaPackets);
+                packet = fecHandler.correctRtp(index);
                 statistics.correctedPackets++;
                 logger.log(Level.INFO, "---> FEC: correctable: " + index);
             } else {

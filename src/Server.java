@@ -3,11 +3,6 @@ Server
 usage: java Server [RTSP listening port]
 ---------------------- */
 
-/* ------------------
-Server
-usage: java Server [RTSP listening port]
----------------------- */
-
 import rtp.RtpHandler;
 import utils.CustomLoggingHandler;
 import video.AviMetadataParser;
@@ -37,8 +32,10 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
   int RTP_dest_port = 0; // destination port for RTP packets  (given by the RTSP Client)
   int FEC_dest_port = 0; // destination port for RTP-FEC packets  (RTP or RTP+2)
   final static int startGroupSize = 2;
-  RtpHandler rtpHandler ;
-    Random random = new Random(123456); // fixed seed for debugging
+  RtpHandler rtpHandler = null;
+  // Channel errors
+  private double lossRate = 0.0;
+  Random random = new Random(123456); // fixed seed for debugging
   int dropCounter; // Nr. of dropped media packets
 
   // GUI:
@@ -78,7 +75,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
   static BufferedReader RTSPBufferedReader;
   static BufferedWriter RTSPBufferedWriter;
   static String VideoFileName = ""; // video file requested from the client
-  static String VideoDir = "videos/";
+  static String VideoDir = "Video/";
   static int RTSP_ID = 123456; // ID of the RTSP session
   int RTSPSeqNb = 0; // Sequence number of RTSP messages within the session
   String sdpTransportLine = "";
@@ -95,6 +92,15 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
     // theServer.RTPsocket = new DatagramSocket();
     rtpHandler = new RtpHandler(startGroupSize);
 
+    // Handler to close the main window
+    addWindowListener(
+            new WindowAdapter() {
+              public void windowClosing(WindowEvent e) {
+                // stop the timer and exit
+                timer.stop();
+                System.exit(0);
+              }
+            });
 
     // GUI:
     label = new JLabel("Send frame #        ", JLabel.CENTER);
@@ -159,8 +165,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
         rtpHandler.setFecGroupSize(k);
         logger.log(Level.INFO, "New Group size: " + k);
       } else {
-          // Channel errors
-          double lossRate = source.getValue();
+        lossRate = source.getValue();
         lossRate = lossRate / 100;
         logger.log(Level.INFO, "New packet error rate: " + lossRate);
       }
@@ -169,7 +174,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
 
   /**
    * Handler for encryption RadioButtons.
-
+   *
    * The ItemEvent is just fired if a Button is selected
    * which previous was not.
    *
@@ -196,7 +201,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
       if (!encryptionSet) {
         Enumeration<AbstractButton> buttons = encryptionButtons.getElements();
         while (buttons.hasMoreElements()) {
-                AbstractButton ab = buttons.nextElement();
+          AbstractButton ab = buttons.nextElement();
           if (ab.getText().equals("keine")) {
             ab.setSelected(true);
           }
@@ -311,7 +316,6 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
           // stop timer
           theServer.timer.stop();
           theServer.videoMeta = null;
-
           // close sockets
           //theServer.RTSPsocket.close();
           // theServer.RTPsocket.close();
@@ -455,7 +459,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
         } else if (line.contains("Transport")) {
           sdpTransportLine = line;
           RTP_dest_port = Integer.parseInt( line.split("=")[1].split("-")[0] );
-          FEC_dest_port = RTP_dest_port;
+          FEC_dest_port = RTP_dest_port + 0;
           logger.log(Level.FINE, "Client-Port: " + RTP_dest_port);
         }
         // else is any other field, not checking for now
@@ -496,7 +500,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
         case SETUP:
           RTSPBufferedWriter.write(sdpTransportLine + ";server_port=");
           RTSPBufferedWriter.write(RTPsocket.getLocalPort() + "-");
-          RTSPBufferedWriter.write((RTPsocket.getLocalPort()+1) + CRLF);
+          RTSPBufferedWriter.write((RTPsocket.getLocalPort()+1) + "" + CRLF);
           // RTSPBufferedWriter.write(";ssrc=0;mode=play" + CRLF);
         default:
           RTSPBufferedWriter.write("Session: " + RTSP_ID + ";timeout=30000" + CRLF);
@@ -537,12 +541,12 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
     rtspBody.write("...");
     rtspBody.write("...");
 
-    rtspHeader.write("Content-Base: ");
-    rtspHeader.write("Content-Type: ");
-    rtspHeader.write("Content-Length: ");
+    rtspHeader.write("Content-Base: " + "");
+    rtspHeader.write("Content-Type: " + "");
+    rtspHeader.write("Content-Length: " + "");
     rtspHeader.write(CRLF);
 
-    return rtspHeader.toString() + rtspBody;
+    return rtspHeader.toString() + rtspBody.toString();
   }
 
   private void initGuiEncryption(JPanel panel) {
@@ -601,7 +605,7 @@ public class Server extends JFrame implements ActionListener, ChangeListener {
     Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     VideoMetadata meta = null;
 
-    String[] splittedFilename = filename.split("\\.");
+    String splittedFilename[] = filename.split("\\.");
     switch (splittedFilename[splittedFilename.length-1]) {
       case "avi":
         meta = AviMetadataParser.parse(filename);
