@@ -5,173 +5,237 @@ import rtp.RTPpacket;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * @author Jörg Vogt
+ * @version 1.0
+ */
+
+/*
+   Information according to RFC 5109
+   http://apidocs.jitsi.org/libjitsi/
+*/
+
 public class FecHandler {
     RTPpacket rtp;
     FECpacket fec;
-    HashMap<Integer, FECpacket> fecStack = new HashMap();
-    HashMap<Integer, Integer> fecNr = new HashMap();
-    HashMap<Integer, List<Integer>> fecList = new HashMap();
-    int playCounter = 0;
+
+    // Receiver
+    HashMap<Integer, FECpacket> fecStack = new HashMap<>(); // list of fec packets
+    HashMap<Integer, Integer> fecNr = new HashMap<>(); // Snr of corresponding fec packet
+    HashMap<Integer, List<Integer>> fecList = new HashMap<>(); // list of involved media packets
+
+    int playCounter = 0; // SNr of RTP-packet to play next, initialized with first received packet
+
+    // *** RTP-Header ************************
     static final int MJPEG = 26;
-    int FEC_PT = 127;
-    int fecSeqNr;
-    int lastReceivedSeqNr;
+    int FEC_PT = 127; // Type for FEC
+    int fecSeqNr; // Sender: increased by one, starting from 0
+    int lastReceivedSeqNr; // Receiver: last received media packet
+
+    // *** FEC Parameters -> Sender ************
     static final int maxGroupSize = 48;
-    int fecGroupSize;
+    int fecGroupSize; // FEC group size
     int fecGroupCounter;
+
+    // -> Receiver
     boolean useFec;
-    byte[] lastPayload = new byte[]{1};
-    int nrReceived;
-    int nrLost;
-    int nrCorrected;
-    int nrNotCorrected;
-    int nrFramesRequested;
-    int nrFramesLost;
 
-    public FecHandler(int var1) {
-        this.fecGroupSize = var1;
+    // Error Concealment
+    byte[] lastPayload = {1};
+
+    // *** Statistics for media packets ********
+    int nrReceived; // count only media at receiver
+    int nrLost; // media missing, play loop
+    int nrCorrected; // play loop
+    int nrNotCorrected; // play loop
+    int nrFramesRequested; // Video Frame
+    int nrFramesLost; // Video Frame
+
+    /** Constructor for Sender */
+    public FecHandler(int size) {
+        fecGroupSize = size;
     }
 
-    public FecHandler(boolean var1) {
-        this.useFec = var1;
+    /**
+     * Client can choose using FEC or not
+     *
+     * @param useFec choose of using FEC
+     */
+    public FecHandler(boolean useFec) {
+        this.useFec = useFec;
     }
 
-    public void setRtp(RTPpacket var1) {
-        if (this.fec == null) {
-            this.fec = new FECpacket(this.FEC_PT, this.fecSeqNr, var1.gettimestamp(), this.fecGroupSize, var1.getsequencenumber());
-            this.fec.setUlpLevelHeader(0, 0, this.fecGroupSize);
+    // *************** Sender SET *******************************************************************
+
+    /**
+     * *** Sender *** Saves the involved RTP packets to build the FEC packet
+     *
+     * @param rtp RTPpacket
+     */
+    public void setRtp(RTPpacket rtp) {
+        // init new FEC packet if necessary
+        if (fec == null) {
+            fec =
+                    new FECpacket(
+                            FEC_PT, fecSeqNr, rtp.gettimestamp(), fecGroupSize, rtp.getsequencenumber());
+            fec.setUlpLevelHeader(0, 0, fecGroupSize);
         }
 
-        ++this.fecGroupCounter;
-        this.fec.TimeStamp = var1.gettimestamp();
-        this.fec.addRtp(var1);
+        fecGroupCounter++; // count the packets in the group
+        fec.TimeStamp = rtp.gettimestamp(); // adjust the time stamp to the last packet in the group
+        fec.addRtp(rtp);
     }
 
+    /** @return True, if all RTP-packets of the group are handled */
     public boolean isReady() {
-        return this.fecGroupCounter == this.fecGroupSize;
+        return (fecGroupCounter == fecGroupSize);
     }
 
+    /**
+     * *** Sender *** Builds the FEC-RTP-Packet and resets the FEC-group
+     *
+     * @return Bitstream of FEC-Packet including RTP-Header
+     */
     public byte[] getPacket() {
-        this.fec.printHeaders();
-        ++this.fecSeqNr;
-        this.fecGroupCounter = 0;
-        byte[] var1 = this.fec.getpacket();
-        this.fec = null;
-        return var1;
+        fec.printHeaders();
+        // Adjust and reset all involved variables
+        fecSeqNr++;
+        fecGroupCounter = 0;
+        byte[] buf = fec.getpacket();
+        fec = null; // reset fec
+        return buf;
     }
 
+    /** Reset of fec group and variables */
     private void clearSendGroup() {
-    }
-
-    public void setFecGroupSize(int var1) {
-        this.fecGroupSize = var1;
-    }
-
-    public void rcvFecPacket(RTPpacket var1) {
-        Logger var2 = Logger.getLogger("global");
-        this.fec = new FECpacket(var1.getpacket(), var1.getpacket().length);
-        this.fec.printHeaders();
-        int var3 = this.fec.getsequencenumber();
-        this.fecSeqNr = var3;
-        this.fecStack.put(var3, this.fec);
-        ArrayList var4 = this.fec.getRtpList();
-        var2.log(Level.FINER, "FEC: set list: " + var3 + " " + var4.toString());
-        var4.forEach((var2x) -> {
-            this.fecNr.put((Integer) var2x, var3);
-        });
-        var4.forEach((var2x) -> {
-            this.fecList.put((Integer) var2x, var4);
-        });
+        // TODO
     }
 
     /**
      * *** Sender *** Posibility to set the group at run time
      *
+     * @param size FEC Group
      */
-
-    public int getFecGroupSize() {
-        return fecGroupSize;
+    public void setFecGroupSize(int size) {
+        fecGroupSize = size;
     }
 
-    public boolean checkCorrection(int var1, HashMap<Integer, RTPpacket> var2) {
-        if (this.fecStack.get(this.fecNr.get(var1)) == null) {
-            return false;
-        } else {
-            Iterator var3 = ((List)this.fecList.get(var1)).iterator();
+    // *************** Receiver PUT *****************************************************************
 
-            Integer var4;
-            do {
-                if (!var3.hasNext()) {
-                    return true;
-                }
+    /**
+     * Handles and store a recieved FEC packet
+     *
+     * @param rtp the received FEC-RTP
+     */
+    public void rcvFecPacket(RTPpacket rtp) {
+        Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+        // build fec from rtp
+        fec = new FECpacket(rtp.getpacket(), rtp.getpacket().length);
+        // TASK remove comment for debugging
+        // fec.printHeaders();
 
-                var4 = (Integer)var3.next();
-            } while(var4 == var1 || var2.get(var4) != null);
+        // stores fec
+        int seqNrFec = fec.getsequencenumber();
+        fecSeqNr = seqNrFec; // for deletion of fec storage
+        fecStack.put(seqNrFec, fec);
 
-            return false;
-        }
+        // get RTP List
+        ArrayList<Integer> list = fec.getRtpList();
+        logger.log(Level.FINER, "FEC: set list: " + seqNrFec + " " + list.toString());
+
+        // set list to get fec packet nr
+        list.forEach((E) -> fecNr.put(E, seqNrFec)); // FEC-packet
+        list.forEach((E) -> fecList.put(E, list));  // list of corresponding RTP packets
     }
 
-    public RTPpacket correctRtp(int var1, HashMap<Integer, RTPpacket> var2) {
-        FECpacket var3 = (FECpacket)this.fecStack.get(this.fecNr.get(var1));
-        Iterator var4 = ((List)this.fecList.get(var1)).iterator();
+    // *************** Receiver GET *****************************************************************
 
-        while(var4.hasNext()) {
-            Integer var5 = (Integer)var4.next();
-            if (var5 != var1) {
-                var3.addRtp((RTPpacket)var2.get(var5));
-            }
-        }
-
-        return var3.getLostRtp(var1);
+    /**
+     * Checks if the RTP packet is reparable
+     *
+     * @param nr Sequence Nr.
+     * @return true if possible
+     */
+    public boolean checkCorrection(int nr, HashMap<Integer, RTPpacket> mediaPackets) {
+        //TASK complete this method!
+        return false;
     }
 
-    private void clearStack(int var1) {
-        this.fecStack.entrySet().removeIf((var1x) -> {
-            return (Integer)var1x.getKey() < var1;
-        });
-        this.fecNr.entrySet().removeIf((var1x) -> {
-            return (Integer)var1x.getKey() < var1;
-        });
-        this.fecList.entrySet().removeIf((var1x) -> {
-            return (Integer)var1x.getKey() < var1;
-        });
+    /**
+     * Build a RTP packet from FEC and group
+     *
+     * @param nr Sequence Nr.
+     * @return RTP packet
+     */
+    public RTPpacket correctRtp(int nr, HashMap<Integer, RTPpacket> mediaPackets) {
+        //TASK complete this method!
+        return fec.getLostRtp(nr);
     }
 
+    /**
+     * It is necessary to clear all data structures
+     *
+     * @param nr Media Sequence Nr.
+     */
+    private void clearStack(int nr) {
+        //TASK complete this method!
+    }
+
+    // *************** Receiver Statistics ***********************************************************
+
+    /**
+     * @return Latest (highest) received sequence number
+     */
     public int getSeqNr() {
-        return this.lastReceivedSeqNr;
+        return lastReceivedSeqNr;
     }
 
+    /**
+     * @return Amount of received media packets (stored in jitter buffer)
+     */
     public int getNrReceived() {
-        return this.nrReceived;
+        return nrReceived;
     }
 
+    /**
+     * @return RTP-Snr of actual frame
+     */
     public int getPlayCounter() {
-        return this.playCounter;
+        return playCounter;
     }
 
+    /**
+     * @return  Number of lost media packets (calculated at time of display)
+     */
     public int getNrLost() {
-        return this.nrLost;
+        return nrLost;
     }
 
+    /**
+     * @return number of corrected media packets
+     */
     public int getNrCorrected() {
-        return this.nrCorrected;
+        return nrCorrected;
     }
 
+    /**
+     * @return Number of nor correctable media packets
+     */
     public int getNrNotCorrected() {
-        return this.nrNotCorrected;
+        return nrNotCorrected;
     }
 
-    public int getNrFramesLost() {
-        return this.nrFramesLost;
-    }
+    /**
+     * @return Number of requested but lost Video frames
+     */
+    public int getNrFramesLost() { return nrFramesLost; }
 
-    public int getNrFramesRequested() {
-        return this.nrFramesRequested;
-    }
+    /**
+     * @return Number of requested Video frames
+     */
+    public int getNrFramesRequested() {  return nrFramesRequested; }
 }

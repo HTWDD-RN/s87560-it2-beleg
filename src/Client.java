@@ -1,34 +1,19 @@
 /* ------------------
 Client
 usage: java Client [Server hostname] [Server RTSP listening port] [Video file requested]
-
-
----------------------- */
-
-
-
-
-
-/* ------------------
-Client
-usage: java Client [Server hostname] [Server RTSP listening port] [Video file requested]
 ---------------------- */
 
 import rtp.ReceptionStatistic;
 import rtp.RtpHandler;
 import utils.CustomLoggingHandler;
-
 import java.io.*;
 import java.net.*;
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.List;
 import javax.swing.*;
-import rtsp.Rtsp;
 import javax.swing.Timer;
 
 public class Client {
@@ -64,10 +49,10 @@ public class Client {
   // RTP variables:
   // ----------------
   DatagramSocket RTPsocket; // socket to be used to send and receive UDP packets
-  //DatagramSocket FECsocket; // socket to be used to send and receive UDP packets for FEC
-  private RtpHandler rtpHandler = null;
+  DatagramSocket FECsocket; // socket to be used to send and receive UDP packets for FEC
+  private final RtpHandler rtpHandler ;
   static int RTP_RCV_PORT = 25000; // port where the client will receive the RTP packets
-
+  // static int FEC_RCV_PORT = 25002; // port where the client will receive the RTP packets
 
   static final int MAX_FRAME_SIZE = 65536;
   static final int RCV_RATE = 2; // interval for receiving loop
@@ -96,21 +81,25 @@ public class Client {
   String RTSPid = "0"; // ID of the RTSP session (given by the RTSP Server)
 
   static final String CRLF = "\r\n";
-  static final String nl = System.getProperty("line.separator");
+
 
   // Video constants:
   // ------------------
   // static int MJPEG_TYPE = 26; // RTP payload type for MJPEG video
   static final int FRAME_RATE = 40;
   private int framerate = 0;
-  private double duration = 0.0; // in s
 
-  public Client() {
+    public Client() {
     rtpHandler = new RtpHandler(false);
 
     // build GUI
     // Frame
-
+    f.addWindowListener(
+            new WindowAdapter() {
+              public void windowClosing(WindowEvent e) {
+                System.exit(0);
+              }
+            });
 
     // Buttons
     buttonPanel.setLayout(new GridLayout(1, 0));
@@ -229,7 +218,7 @@ public class Client {
 
       if (state == INIT) {
         if (framerate == 0) { // no information on media available
-          send_RTSP_request("DESCRIBE");
+          send_RTSP_request("SETUP");
           if (parse_server_response() != 200) { // block and wait for response
             logger.log(Level.WARNING, "Invalid Server Response");
           }
@@ -238,10 +227,13 @@ public class Client {
         // Init non-blocking RTPsocket that will be used to receive data
         try {
           // TASK construct a new DatagramSocket to receive server RTP packets on port RTP_RCV_PORT
-          RTPsocket = new DatagramSocket();
+          RTPsocket = new DatagramSocket(RTP_RCV_PORT);
+          RTPsocket.setSoTimeout(5);
 
           // for now FEC packets are received via RTP-Port, so keep comment below
-          // FECsocket = new DatagramSocket(FEC_RCV_PORT);
+          ////Socket für FECpakete auf Port: RTP_RCV_PORT + 11
+           FECsocket = new DatagramSocket(RTP_RCV_PORT + 11);
+           FECsocket.setSoTimeout(5);
 
           // TASK set Timeout value of the socket to 1 ms
           // ....
@@ -272,12 +264,13 @@ public class Client {
         logger.log(Level.INFO, "Wait for response...");
         if (parse_server_response() != 200) {
           logger.log(Level.WARNING, "Invalid Server Response");
-        } else {
+        }
+//        else {
           // TASK change RTSP state and print new state to console and statusLabel
           // state = ....
           // statusLabel
           // logger.log(Level.INFO, "New RTSP state: \n");
-        }
+//        }
       } // else if state != INIT then do nothing
     }
   }
@@ -472,27 +465,21 @@ public class Client {
 
     //TASK complete the statistics
     private void setStatistics(ReceptionStatistic rs) {
-      DecimalFormat df = new DecimalFormat("###.###");
+//      DecimalFormat df = new DecimalFormat("###.###");
+      //
       pufferLabel.setText(
               "Puffer: "
-                      + ""  //
                       + " aktuelle Nr. / Summe empf.: "
-                      + " / "
-                      + "");
+                      + " / ");
       statsLabel.setText(
               "<html>Abspielzähler / verlorene Medienpakete // Bilder / verloren: "
-                      + ""
                       + " / "
-                      + ""
                       + "<p/>"
                       + "</html>");
       fecLabel.setText(
               "FEC: korrigiert / nicht korrigiert: "
-                      + ""
                       + " / "
-                      + ""
-                      + "  Ratio: "
-                      + "");
+                      + "  Ratio: ");
     }
   }
 
@@ -513,13 +500,14 @@ public class Client {
 
       String line;
       do {
-        System.out.println("loop");
         line = RTSPBufferedReader.readLine();
-        System.out.println(("after readline"));
-        System.out.println(line);
-        if (!line.equals("")) respLines.add(line);
-      } while (!line.equals(""));
+        logger.log(Level.CONFIG, line);
+        if (line != null && !line.equals("")) {
+
+        };
+      } while (line != null && !line.equals(""));
       ListIterator<String> respIter = respLines.listIterator(0);
+
       StringTokenizer tokens = new StringTokenizer(respIter.next());
       tokens.nextToken(); // skip over the RTSP version
       reply_code = Integer.parseInt(tokens.nextToken());
@@ -581,18 +569,19 @@ public class Client {
     logger.log(Level.INFO, "Data: " + data);
     logger.log(Level.INFO, new String(cbuf));
 
-    String sbuf[] = new String(cbuf).split(CRLF);
+    String[] sbuf = new String(cbuf).split(CRLF);
     for (int i = 0; i < sbuf.length; i++) {
       if (sbuf[i].contains("framerate")) {
         String sfr = sbuf[i].split(":")[1];
         framerate = Integer.parseInt(sfr);
         logger.log(Level.INFO, "framerate: " + framerate);
       } else if (sbuf[i].contains("range:npt")) {
-        String sdur[] = sbuf[i].split("-");
+        String[] sdur = sbuf[i].split("-");
         if (sdur.length > 1) {
-          duration = Double.parseDouble(sdur[1]);
+            // in s
+            double duration = Double.parseDouble(sdur[1]);
           logger.log(Level.INFO, "duration [s]: " + duration);
-          progressPosition.setMaximum((int)duration * framerate);
+          progressPosition.setMaximum((int) duration * framerate);
         } // else: no duration available
       } // else: other attributes are not recognized here
     }
@@ -613,9 +602,8 @@ public class Client {
       if (request_type.equals("SETUP")) rtsp = rtsp + "/trackID=0";
 
       String rtspReq = "";
-      rtspReq = request_type + " " + rtsp + " RTSP/1.0" + CRLF;
       //TASK Complete the RTSP request method line
-      rtspReq += "CSeq: " + RTSPSeqNb + CRLF;
+      // rtspReq = ....
 
       // TASK write the CSeq line:
       // rtspReq += ....
@@ -625,20 +613,15 @@ public class Client {
       // otherwise, write the Session line from the RTSPid field
       if (request_type.equals("SETUP")) {
         //TASK Complete the Transport Attribute
-        rtspReq += "Transport: "+"RTP/UDP;unicast;client_port=" + RTP_RCV_PORT + "-" + (RTP_RCV_PORT + 1) + CRLF;
+        rtspReq += "Transport:";
       }
 
       // SessionIS if available
       if (!RTSPid.equals("0")) {
         rtspReq += "Session: " + RTSPid + CRLF;
       }
-      if (RTSPBufferedWriter == null){
-        logger.log(Level.SEVERE, "RTSPBufferedWriter ist not intilized");
-      }
 
       logger.log(Level.CONFIG, rtspReq); // console debug
-      logger.log(Level.INFO, "RTSP " + rtsp) ;
-      logger.log(Level.INFO,"RTSP request " + rtspReq);
       // Use the RTSPBufferedWriter to write to the RTSP socket
       RTSPBufferedWriter.write(rtspReq + CRLF);
       RTSPBufferedWriter.flush();
@@ -703,16 +686,8 @@ public class Client {
           break;
       }
 
-      boolean encryptionSet = rtpHandler.setEncryption(mode);
-      if (!encryptionSet) {
-        Enumeration<AbstractButton> buttons = encryptionButtons.getElements();
-        while (buttons.hasMoreElements()) {
-          AbstractButton ab = buttons.nextElement();
-          if (ab.getText().equals("keine")) {
-            ab.setSelected(true);
+
           }
         }
       }
-    }
-  }
-}
+
